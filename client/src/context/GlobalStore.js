@@ -1,6 +1,7 @@
 /* eslint-disable no-case-declarations */
-import React, { createContext, useReducer, useState } from 'react';
+import React, { createContext, useEffect, useReducer, useState } from 'react';
 import uuid from 'react-uuid';
+import API from '../api';
 
 const ADD_INVESTOR = 'ADD_INVESTOR';
 const UPDATE_INVESTOR = 'UPDATE_INVESTOR';
@@ -51,29 +52,17 @@ const investorBreakdownReducer = (state, dispatch) => {
 export const GlobalStore = createContext();
 
 const GlobalStoreProvider = (props) => {
+
+    const [totalAllocation, setTotalAllocation] = useState(0);
+    const [apiError, setApiError] = useState(false);
+    const [apiSuccess, setApiSuccess] = useState(false);
+    const [apiErrorMessage, setApiErrorMessage] = useState("the API broke...");
+    const [calculatedBreakdown, setCalculatedBreakdown] = useState([]);
+    const [validInput, setValidInput] = useState(false)
     const [investorBreakdown, dispatchInvestorBreakdown] = useReducer(
         investorBreakdownReducer,
         initialState
     );
-    const [totalAllocation, setTotalAllocation] = useState(0);
-    const [calculatedBreakdown, setCalculatedBreakdown] = useState([
-        {
-            name: 'Investor A',
-            allocation: 100
-        },
-        {
-            name: 'Investor B',
-            allocation: 100
-        },
-        {
-            name: 'Investor C',
-            allocation: 100
-        },
-        {
-            name: 'Investor D',
-            allocation: 100
-        }
-    ]);
 
     const doFormatForAPI = (payload) => {
         const investor_amounts = payload.map(investor => ({ name: investor.name, requested_amount: investor.requested, average_amount: investor.average }))
@@ -82,26 +71,44 @@ const GlobalStoreProvider = (props) => {
             investor_amounts
         }
     };
-    const postBreakdownForCalculation = async (payload) => {
-        try {
-            // const url = '/calculate';
-            // let config = {
-            //     method: 'POST',
-            //     body: JSON.stringify(payload)
-            // };
-            // let res = await fetch(url, config)
-            console.log({ req: payload });
-            setCalculatedBreakdown(calculatedBreakdown);
-            return;
-        } catch (error) {
-            console.error(error);
-        }
-    };
 
     const doCalculateProration = async () => {
         const payload = doFormatForAPI(Object.values(investorBreakdown))
-        return postBreakdownForCalculation(payload)
+        try {
+            let res = await API.runCalculation(payload)
+            const body = await res.json()
+            setCalculatedBreakdown(body.results)
+            setApiSuccess(true)
+            setTimeout(() => {
+                setApiSuccess(false)
+            }, 5000)
+        } catch (error) {
+            setApiError(true)
+            setApiErrorMessage(error.message)
+            setTimeout(() => {
+                setApiError(false)
+                setApiErrorMessage("")
+            }, 5000)
+        }
     };
+
+    useEffect(() => {
+        const uuids = Object.keys(investorBreakdown)
+        const inputValues = uuids.map(uuid => {
+            const investor = investorBreakdown[uuid]
+            const { name, requested } = investor
+            if (name && requested) return true
+            else return false
+        })
+        let isValid = inputValues.reduce((res, cur) => res || cur, false)
+        if (isValid) {
+            setValidInput(true)
+        } else {
+            setValidInput(false)
+        }
+
+    }, [investorBreakdown])
+
     return (
         <GlobalStore.Provider
             value={{
@@ -109,8 +116,12 @@ const GlobalStoreProvider = (props) => {
                 UPDATE_INVESTOR,
                 DELETE_INVESTOR,
                 investorBreakdown,
+                apiError,
+                apiSuccess,
+                apiErrorMessage,
                 dispatchInvestorBreakdown,
                 totalAllocation,
+                validInput,
                 setTotalAllocation,
                 doCalculateProration,
                 calculatedBreakdown

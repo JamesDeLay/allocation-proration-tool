@@ -31,6 +31,7 @@ function InputWidget() {
                 <Grid item xs={12}>
                     <div style={{ display: 'flex', justifyContent: "flex-end" }}>
                         <Button
+                            disabled={!ctx.validInput || ctx.totalAllocation === 0}
                             variant="contained"
                             onClick={() => ctx.doCalculateProration()}
                             color="secondary"

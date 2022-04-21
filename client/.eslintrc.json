@@ -9,7 +9,8 @@
     "rules": {
         "eqeqeq": "error",
         "no-console": "warn",
-        "prettier/prettier": "warn"
+        "prettier/prettier": "warn",
+        "no-unused-vars": "warn"
     },
     "parserOptions": {
         "sourceType": "module",
